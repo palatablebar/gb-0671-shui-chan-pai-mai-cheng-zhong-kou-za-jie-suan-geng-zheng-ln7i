@@ -6,9 +6,26 @@
     "auction",
     "correction",
     "reconcile",
+    "dispute",
     "archive"
   ],
   "market": "东港水产",
   "currency": "CNY",
-  "weight_unit": "kg"
+  "weight_unit": "kg",
+  "disputes": [
+    {
+      "ticket": "00001",
+      "version": "2",
+      "claimed_amount": "1230.00",
+      "evidence_refs": [
+        "42",
+        "43"
+      ],
+      "evidence_due": [
+        "复秤小票照片",
+        "扣杂复核签字单"
+      ],
+      "note": "买家对复秤扣杂率提出争议"
+    }
+  ]
 }

@@ -10,6 +10,7 @@
     "扣杂竞价",
     "更正裁决",
     "应付对账",
+    "争议处理",
     "结算归档"
   ],
   "rule": "双次称重先配对，再按品类扣杂；更正只能替代指定版本，禁止重复支付",
@@ -29,6 +30,7 @@
     "auction",
     "correction",
     "reconcile",
+    "dispute",
     "archive"
   ],
   "labels": {
@@ -63,6 +65,20 @@
     "repeated_header": "重复表头",
     "row_balanced": "行守恒",
     "money_balanced": "金额守恒",
-    "blocked": "阻断项"
+    "blocked": "阻断项",
+    "dispute_id": "争议单号",
+    "effective_version": "生效版本",
+    "dispute_version": "争议依据版本",
+    "effective_amount": "生效应付 CNY",
+    "claimed_amount": "买家主张 CNY",
+    "dispute_amount": "争议金额 CNY",
+    "hold_amount": "暂扣金额 CNY",
+    "payable_amount": "可付金额 CNY",
+    "evidence_refs": "证据行号",
+    "evidence_due": "待补证据",
+    "weight_basis": "采用称重与更正版本",
+    "source_lines": "称重来源行",
+    "gross_kg": "毛重 kg",
+    "tare_kg": "皮重 kg"
   }
 }

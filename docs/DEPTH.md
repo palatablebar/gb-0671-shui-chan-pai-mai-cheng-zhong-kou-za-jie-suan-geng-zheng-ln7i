@@ -12,7 +12,8 @@
 | M4 扣杂竞价 | 查看并执行扣杂竞价 | `POST /api/auction` | `app/modules/auction/rules.py` | `tests/test_auction.py` |
 | M5 更正裁决 | 查看并执行更正裁决 | `POST /api/correction` | `app/modules/correction/rules.py` | `tests/test_correction.py` |
 | M6 应付对账 | 查看并执行应付对账 | `POST /api/reconcile` | `app/modules/reconcile/rules.py` | `tests/test_reconcile.py` |
-| M7 结算归档 | 查看并执行结算归档 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
+| M7 争议处理 | 登记争议并生成部分结款处理单 | `POST /api/disputes` | `app/modules/dispute/rules.py` | `tests/test_dispute.py`、`tests/test_dispute_api.py` |
+| M8 结算归档 | 查看并执行结算归档 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
 
 ## 陷阱登记
 
@@ -30,6 +31,14 @@
 | TRAP-06 | 全角千分位 | 静默错算或丢失证据 | 显式归一与原因裁决 | `app/modules/conversion/rules.py` | `tests/test_conversion.py::test_fullwidth_thousands` |
 | TRAP-10 | 金额半分舍入 | 静默错算或丢失证据 | 显式归一与原因裁决 | `app/modules/auction/rules.py` | `tests/test_auction.py::test_half_cent_rounding` |
 | TRAP-26 | 陈旧更正分支 | 静默错算或丢失证据 | 显式归一与原因裁决 | `app/modules/correction/rules.py` | `tests/test_correction.py::test_stale_branch` |
+| TRAP-27 | 争议证据无法对应原票 | 先结整票后追偿或整票冻结拖款 | 待处理不占款不封存 | `app/modules/dispute/rules.py` | `tests/test_dispute.py::test_evidence_unlinked_goes_pending` |
+| TRAP-28 | 争议落在未闭合更正分支 | 按不确定生效版误付 | 分支优先判定为待处理 | `app/modules/dispute/rules.py` | `tests/test_dispute.py::test_branch_unclosed_goes_pending` |
+| TRAP-29 | 同一争议重复到达/重跑 | 重复占款或重复结付 | 争议指纹幂等，同单只占一次款 | `app/modules/dispute/rules.py`、`app/modules/dispute/handler.py` | `tests/test_dispute.py::test_duplicate_dispute_single_hold`、`tests/test_dispute_api.py::test_submit_idempotent_no_double_hold` |
+| TRAP-30 | 处理单重发写库失败 | 半截处理单覆盖旧版 | 先备份后写入，失败恢复旧版 | `app/modules/dispute/handler.py`、`app/store.py` | `tests/test_dispute_api.py::test_resend_failure_restores_old_version` |
+
+## 争议处理规则
+
+处理单只做部分结款，不冻结整票：争议金额=|生效应付−买家主张|，暂扣金额=min(争议金额, 未付待付)，可付金额=待付−暂扣，卖家当日拿到已核实货款。争议以 `票号+依据版本+主张金额+证据行号` 的 SHA256 指纹为幂等键；证据行号必须属于该票计价版本的原始称重行。待处理项（`EVIDENCE_UNLINKED`、`BRANCH_UNCLOSED`、`DISPUTE_DUPLICATE` 等）只登记不占款，且封存裁决强制为"待处理"。原始称重、成交与付款证据只新增不覆盖，封存包在 `evidence.json` 之外追加 `disputes.json`。
 
 ## 对账规则
 

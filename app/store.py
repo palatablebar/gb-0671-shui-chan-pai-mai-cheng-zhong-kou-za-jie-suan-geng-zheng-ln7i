@@ -34,3 +34,32 @@ def review(path,run_id,revision):
                 raise BusinessError('NOT_FOUND','批次不存在',404)
             raise BusinessError('STALE_VERSION','复核版本已更新，请刷新',409)
     return get(path,run_id)
+
+def update_run(path,run_id,result,expected_revision=None):
+    """整结果替换写入，带可选乐观锁。
+
+    争议处理单等增量业务在调用方先 deepcopy 旧结果再修改，这里只负责一次事务写入；
+    版本不匹配时抛 409，数据库保持旧版不动。
+    """
+    with connect(path) as con:
+        if expected_revision is not None:
+            if not isinstance(expected_revision,int) or expected_revision<1:
+                raise BusinessError('BAD_REVISION','版本号须为正整数')
+            cur=con.execute(
+                'UPDATE runs SET result=?,revision=revision+1 WHERE id=? AND revision=?',
+                (json.dumps(result,ensure_ascii=False),run_id,expected_revision))
+        else:
+            cur=con.execute('UPDATE runs SET result=? WHERE id=?',
+                            (json.dumps(result,ensure_ascii=False),run_id))
+        if cur.rowcount!=1:
+            if not con.execute('SELECT 1 FROM runs WHERE id=?',(run_id,)).fetchone():
+                raise BusinessError('NOT_FOUND','批次不存在',404)
+            raise BusinessError('STALE_VERSION','处理单版本已更新，请刷新后重试',409)
+    return get(path,run_id)
+
+def replace_run(path,run_id,result):
+    """故障恢复：用旧版快照无条件覆盖，且不推进 revision。"""
+    with connect(path) as con:
+        con.execute('UPDATE runs SET result=? WHERE id=?',
+                    (json.dumps(result,ensure_ascii=False),run_id))
+    return get(path,run_id)

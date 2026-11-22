@@ -7,6 +7,42 @@ document.querySelector('#filter').addEventListener('input',event=>{const text=ev
 const review=document.querySelector('#review');if(review)review.addEventListener('click',async()=>{try{const run=await fetch('/api/runs/'+review.dataset.id).then(r=>r.json());const result=await request('/api/runs/'+review.dataset.id+'/review',{revision:run.revision});feedback.textContent=result.status;}catch(error){feedback.textContent=error.message;}});
 const selected=new URL(location.href).searchParams.get('dataset');if(selected)document.querySelector('#dataset').value=selected;
 
+const disputeForm=document.querySelector('#dispute-form');
+if(disputeForm){
+ const runId=document.body.dataset.runId;
+ disputeForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const fd=new FormData(disputeForm);
+  const payload={run_id:runId,disputes:[{
+   ticket:fd.get('ticket').trim(),version:fd.get('version').trim(),
+   claimed_amount:fd.get('claimed_amount').trim(),
+   evidence_refs:fd.get('evidence_refs').split(',').map(s=>s.trim()).filter(Boolean),
+   evidence_due:fd.get('evidence_due').split(',').map(s=>s.trim()).filter(Boolean),
+  }]};
+  try{
+   const run=await fetch('/api/runs/'+runId).then(r=>r.json());
+   payload.revision=run.revision;
+   const r=await fetch('/api/disputes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   const data=await r.json();
+   if(!r.ok)throw Error(data.detail||'提交失败');
+   feedback.textContent=data.submit_note||`已生成处理单，可付 ${data.dispute_summary.payable_total} CNY`;
+   location.reload();
+  }catch(error){feedback.textContent=error.message;}
+ });
+}
+document.querySelectorAll('.resend').forEach(btn=>btn.addEventListener('click',async()=>{
+ try{
+  const runId=document.body.dataset.runId;
+  const run=await fetch('/api/runs/'+runId).then(r=>r.json());
+  const r=await fetch('/api/disputes/resend',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({run_id:runId,dispute_id:btn.dataset.dispute,revision:run.revision})});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.detail||'重发失败');
+  feedback.textContent='处理单已重发，旧版未被破坏';
+  location.reload();
+ }catch(error){feedback.textContent=error.message;}
+}));
+
 const filePicker=document.querySelector('#csv-file');
 if(filePicker){
  const editor=document.querySelector('#csv-text');

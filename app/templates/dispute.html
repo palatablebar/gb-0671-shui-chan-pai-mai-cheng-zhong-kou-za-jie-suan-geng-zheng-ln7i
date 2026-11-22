@@ -1,0 +1,64 @@
+{% extends 'base.html' %}{% block content %}
+<div class="grid">
+  <section class="panel primary-panel">
+    <div class="panel__head"><h2>可执行争议处理单</h2><span>{{ state.dispute_orders|default([])|length }} 单 · 部分结款</span></div>
+    <div class="scroll"><table class="ledger"><thead><tr>
+      <th>争议单号</th><th>票号</th><th>生效版本</th><th>争议依据版本</th><th>采用称重（毛/皮/净/计价 kg）</th><th>称重来源行</th>
+      <th>生效应付</th><th>买家主张</th><th>争议金额</th><th>已付</th><th>暂扣金额</th><th>可付金额</th><th>证据行号</th><th>待补证据</th><th>状态</th><th>重发</th>
+    </tr></thead><tbody>
+    {% for o in state.dispute_orders|default([]) %}
+    <tr>
+      <td class="mono" title="{{ o.dispute_id }}">{{ o.dispute_id }}</td>
+      <td>{{ o.ticket }}</td>
+      <td>v{{ o.effective_version }}</td>
+      <td>v{{ o.dispute_version }}</td>
+      <td class="num" title="扣杂率 {{ o.weight_basis.rate }} · 单价 {{ o.weight_basis.price }}">{{ o.weight_basis.gross_kg }} / {{ o.weight_basis.tare_kg }} / {{ o.weight_basis.net_kg }} / {{ o.weight_basis.billable_kg }}</td>
+      <td>{{ o.weight_basis.source_lines|join(',') }}</td>
+      <td class="num">{{ o.effective_amount }}</td>
+      <td class="num">{{ o.claimed_amount }}</td>
+      <td class="num"><b>{{ o.dispute_amount }}</b></td>
+      <td class="num">{{ o.paid_amount }}</td>
+      <td class="num"><b>{{ o.hold_amount }}</b></td>
+      <td class="num"><b>{{ o.payable_amount }}</b></td>
+      <td>{{ o.evidence_refs|join(',') }}</td>
+      <td title="{{ o.evidence_due|join('；') }}">{{ o.evidence_due|join('；') or '—' }}</td>
+      <td>{{ o.status }}{% if o.rerun_hit or o.idempotent_hit %}<br><span class="tag">幂等命中未重复占款</span>{% endif %}</td>
+      <td><button class="btn resend" data-dispute="{{ o.dispute_id }}">重发</button></td>
+    </tr>
+    {% else %}<tr><td colspan="16">本批暂无争议处理单。</td></tr>{% endfor %}
+    </tbody></table></div>
+    <div class="panel__bar">
+      <span>合计：争议 {{ state.dispute_summary.dispute_total if state.dispute_summary else '0.00' }} CNY ｜ 暂扣 {{ state.dispute_summary.hold_total if state.dispute_summary else '0.00' }} CNY ｜ 可付 {{ state.dispute_summary.payable_total if state.dispute_summary else '0.00' }} CNY</span>
+      <label>票号 <input id="filter" placeholder="筛选票号"></label>
+    </div>
+  </section>
+  <div class="stack">
+    <section class="panel">
+      <div class="panel__head"><h2>待处理队列（不占款·不封存）</h2><span>{{ state.dispute_pending|default([])|length }} 条</span></div>
+      <div class="scroll"><table class="ledger"><thead><tr><th>到达序</th><th>票号</th><th>原因码</th><th>原因</th><th>证据行号</th></tr></thead><tbody>
+      {% for p in state.dispute_pending|default([]) %}
+      <tr><td>{{ p.arrival_index }}</td><td>{{ p.ticket or '—' }}</td><td>{{ p.code }}</td><td>{{ p.detail }}</td><td>{{ p.evidence_refs|join(',') or '—' }}</td></tr>
+      {% else %}<tr><td colspan="5">无待处理争议。</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel__head"><h2>登记新争议</h2><span>提交后落库</span></div>
+      <form id="dispute-form" class="dispute-form">
+        <label>票号 <input name="ticket" required placeholder="如 00001"></label>
+        <label>争议依据版本 <input name="version" required placeholder="如 2"></label>
+        <label>买家主张应付 CNY <input name="claimed_amount" required placeholder="如 1230.00"></label>
+        <label>证据行号（逗号分隔，须属该票） <input name="evidence_refs" required placeholder="如 42,43"></label>
+        <label>待补证据（逗号分隔） <input name="evidence_due" placeholder="如 复秤小票照片"></label>
+        <button class="btn primary" type="submit">生成处理单</button>
+      </form>
+    </section>
+  </div>
+</div>
+<section class="panel log-panel">
+  <div class="panel__head"><h2>采集日志</h2><span id="log-state">滚动中</span></div>
+  <div id="log-tail" class="log-tail">
+    {% for p in state.dispute_pending|default([]) %}<div><time>09:1{{ loop.index }}</time><span class="lamp warn"></span> HOLD　票 {{ p.ticket or '?' }}　{{ p.code }}　{{ p.detail }}</div>{% endfor %}
+    {% for o in state.dispute_orders|default([]) %}<div><time>09:2{{ loop.index }}</time><span class="lamp"></span> ORDER　{{ o.dispute_id }}　暂扣 {{ o.hold_amount }}　可付 {{ o.payable_amount }}</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}
